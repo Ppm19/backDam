@@ -26,13 +26,12 @@ mongoose.connect(mongoURI)
 app.use(cors());
 app.use(express.json());
 
-// --- IMPORTAR Y USAR RUTAS MODULARES ---
+// --- RUTAS MODULARES ---
 const rutasUsuario = require('./routes/RutasUsuario');
 const rutasGrupo = require('./routes/RutasGrupo');
 const rutasSolicitudAmistad = require('./routes/RutasSolicitudAmistad');
 const rutasInvitacionGrupo = require('./routes/RutasInvitacionGrupo');
 const rutasGasto = require('./routes/RutasGasto');
-
 app.use('/api/usuarios', rutasUsuario);
 app.use('/api/grupos', rutasGrupo);
 app.use('/api/solicitudes-amistad', rutasSolicitudAmistad);

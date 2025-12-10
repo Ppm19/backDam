@@ -118,7 +118,7 @@ router.post('/login', async (req, res) => {
     jwt.sign(
       payload,
       process.env.JWT_SECRET,
-      { expiresIn: '5h' }, // Token expira en 5 horas
+      { expiresIn: '5h' },
       (err, token) => {
         if (err) throw err;
         const usuarioParaDevolver = usuario.toObject();
@@ -247,7 +247,7 @@ router.delete('/:userId/amigos/:friendId', async (req, res) => {
   try {
     const { userId, friendId } = req.params;
 
-    // 1. Verificar que ambos usuarios existan (opcional, pero buena práctica)
+    // 1. Verificar que ambos usuarios existan
     const user = await Usuario.findById(userId);
     const friend = await Usuario.findById(friendId);
 
@@ -263,7 +263,7 @@ router.delete('/:userId/amigos/:friendId', async (req, res) => {
       $pull: { amigos: friendId }
     });
 
-    // 3. Eliminar usuario actual de la lista del amigo (bidireccional)
+    // 3. Eliminar usuario actual de la lista del amigo
     await Usuario.findByIdAndUpdate(friendId, {
       $pull: { amigos: userId }
     });
