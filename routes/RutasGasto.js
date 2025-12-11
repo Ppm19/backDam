@@ -55,10 +55,10 @@ router.post('/', async (req, res) => {
             grupoId,
             nombre,
             total,
-            pagadoPor, // ID del usuario que pagó
-            tipoDivision, // 'Iguales' o 'Manual'
-            detalleDivision, // Array de { usuario: ID, importe: Number } solo si tipoDivision es 'Manual'
-            fecha // Opcional, por defecto Date.now()
+            pagadoPor,
+            tipoDivision,
+            detalleDivision,
+            fecha
         } = req.body;
 
         if (!grupoId || !nombre || total === undefined || !pagadoPor || !tipoDivision) {
@@ -133,8 +133,6 @@ router.post('/', async (req, res) => {
         });
 
         const gastoGuardado = await nuevoGasto.save();
-        
-        // Podríamos querer popular aquí antes de enviar, o dejarlo para las rutas GET
         res.status(201).json(gastoGuardado);
 
     } catch (err) {
@@ -156,17 +154,13 @@ router.get('/grupo/:grupoId', async (req, res) => {
             return res.status(404).json({ message: 'Grupo no encontrado.' });
         }
 
-        // Aquí podrías añadir una verificación si el usuario que hace la petición es miembro del grupo,
-        // si esa es una lógica de negocio deseada (ej. req.currentUser.id debe estar en grupo.miembros)
-        // Por ahora, se asume que si se tiene el grupoId, se pueden ver sus gastos si el grupo es válido.
-
         const gastos = await Gasto.find({ grupo: grupoId })
-            .populate('pagadoPor', 'nombre foto') // Popula quién pagó el gasto
+            .populate('pagadoPor', 'nombre foto')
             .populate({
                 path: 'detalleDivision.usuario',
-                select: 'nombre foto' // Popula los usuarios en el detalle de la división
+                select: 'nombre foto'
             })
-            .sort({ fecha: -1 }); // Ordenar por fecha, los más recientes primero
+            .sort({ fecha: -1 });
 
         res.json(gastos);
 
@@ -185,21 +179,16 @@ router.get('/:gastoId', async (req, res) => {
         const { gastoId } = req.params;
 
         const gasto = await Gasto.findById(gastoId)
-            .populate('grupo', 'nombre moneda') // Popula el grupo al que pertenece el gasto
-            .populate('pagadoPor', 'nombre foto email') // Popula quién pagó el gasto
+            .populate('grupo', 'nombre moneda')
+            .populate('pagadoPor', 'nombre foto email')
             .populate({
                 path: 'detalleDivision.usuario',
-                select: 'nombre foto email' // Popula los usuarios en el detalle de la división
+                select: 'nombre foto email'
             });
 
         if (!gasto) {
             return res.status(404).json({ message: 'Gasto no encontrado.' });
         }
-
-        // Aquí también podrías verificar si el usuario actual es miembro del grupo al que pertenece el gasto,
-        // antes de devolver los detalles. Ejemplo: const grupoDelGasto = await Grupo.findById(gasto.grupo._id);
-        // if (!grupoDelGasto.miembros.map(m=>m.toString()).includes(req.currentUser.id)) { return res.status(403).json(...)}
-        // Esto dependerá de si un usuario puede obtener un gasto por ID directo sin ser miembro.
 
         res.json(gasto);
 
@@ -231,7 +220,6 @@ router.put('/:gastoId', async (req, res) => {
             return res.status(403).json({ message: 'No autorizado. Solo el usuario que pagó el gasto puede modificarlo.' });
         }
 
-        // Nueva lógica para eliminar un participante
         if (participanteAEliminarId) {
             const participanteIndex = gasto.detalleDivision.findIndex(p => p.usuario.toString() === participanteAEliminarId);
 
@@ -242,22 +230,12 @@ router.put('/:gastoId', async (req, res) => {
             const participanteEliminado = gasto.detalleDivision[participanteIndex];
             const importeEliminado = participanteEliminado.importe;
 
-            // Actualizar el total del gasto
             gasto.total = parseFloat(gasto.total) - parseFloat(importeEliminado);
-            if (gasto.total < 0) gasto.total = 0; // Asegurarse que el total no sea negativo
+            if (gasto.total < 0) gasto.total = 0;
 
-            // Filtrar el participante de detalleDivision
             gasto.detalleDivision.splice(participanteIndex, 1);
 
-            // Si después de eliminar, no quedan participantes y el tipo de división es 'Iguales'
-            // o si el total es cero, podríamos querer cambiar el tipo de división o manejarlo de alguna manera.
-            // Por ahora, solo eliminamos y ajustamos el total.
-            // Si el tipo de división era 'Iguales' y aún quedan participantes, el reparto ya no será igual
-            // a menos que se recalcule. El requerimiento actual no pide recalcular, solo quitar.
-            // Si no quedan participantes, el gasto.total se habrá reducido, pero detalleDivision estará vacío.
-
         } else {
-            // Lógica de actualización general del gasto (existente)
             let divisionActualizada = gasto.detalleDivision;
             let totalActualizado = gasto.total;
 
@@ -271,12 +249,9 @@ router.put('/:gastoId', async (req, res) => {
 
             if (nombre) gasto.nombre = nombre;
             if (fecha) gasto.fecha = new Date(fecha);
-            // No se permite cambiar pagadoPor ni el grupo del gasto directamente aquí.
 
-            // Si se cambia el tipo de división o el detalle, o el total (que afecta la división igualitaria)
             if (tipoDivision) {
                 gasto.tipoDivision = tipoDivision;
-                // Necesitamos el grupo para la división igualitaria o para validar miembros en división manual
                 const grupoDeGasto = await Grupo.findById(gasto.grupo._id).populate('miembros'); 
                 if (!grupoDeGasto) {
                     return res.status(404).json({ message: 'El grupo asociado a este gasto ya no existe.' });
@@ -300,7 +275,6 @@ router.put('/:gastoId', async (req, res) => {
                     if (Math.abs(sumaDetalle - totalActualizado) > epsilon) {
                         return res.status(400).json({ message: `La suma de los importes en detalleDivision (${sumaDetalle.toFixed(2)}) no coincide con el total del gasto (${totalActualizado.toFixed(2)}).` });
                     }
-                    // Validar que todos los usuarios en detalleDivision son miembros del grupo
                     for (const item of detalleDivision) {
                         if (!item.usuario || item.importe === undefined || parseFloat(item.importe) < 0) {
                             return res.status(400).json({ message: 'Cada item en detalleDivision debe tener un usuario y un importe no negativo.' });
@@ -316,7 +290,6 @@ router.put('/:gastoId', async (req, res) => {
                 }
                 gasto.detalleDivision = divisionActualizada;
             } else if (total !== undefined && gasto.tipoDivision === 'Iguales') {
-                // Si solo se actualiza el total y la división es 'Iguales', recalcular
                 const grupoDeGasto = await Grupo.findById(gasto.grupo._id).populate('miembros');
                 if (!grupoDeGasto) {
                     return res.status(404).json({ message: 'El grupo asociado a este gasto ya no existe.' });
@@ -330,11 +303,11 @@ router.put('/:gastoId', async (req, res) => {
                     importe: importePorMiembro
                 }));
             }
-        } // Fin del else para la lógica de actualización general
+        }
 
         const gastoActualizado = await gasto.save();
         
-        // Popular respuesta para consistencia
+
         const gastoRespuesta = await Gasto.findById(gastoActualizado._id)
             .populate('grupo', 'nombre moneda')
             .populate('pagadoPor', 'nombre foto email')
@@ -361,9 +334,7 @@ router.put('/:gastoId', async (req, res) => {
 router.delete('/:gastoId', async (req, res) => {
     try {
         const { gastoId } = req.params;
-        // Asegúrate de enviar el ID del usuario que realiza la acción desde el frontend
-        // Puede ser a través del cuerpo de la solicitud o de un token de autenticación decodificado (ej. req.currentUser.id)
-        const { usuarioIdAccion } = req.body; // O la forma que uses para identificar al usuario
+        const { usuarioIdAccion } = req.body;
 
         if (!usuarioIdAccion) {
             return res.status(401).json({ message: 'ID de usuario que realiza la acción es requerido para eliminar.' });
@@ -403,13 +374,10 @@ router.get('/usuario/:usuarioId', async (req, res) => {
             return res.status(404).json({ message: 'Usuario no encontrado.' });
         }
 
-        // Encontrar todos los grupos a los que pertenece el usuario
         const gruposDelUsuario = await Grupo.find({ miembros: usuarioId });
 
-        // Obtener los IDs de esos grupos
         const grupoIds = gruposDelUsuario.map(grupo => grupo._id);
 
-        // Encontrar todos los gastos asociados a esos grupos
         const gastos = await Gasto.find({ grupo: { $in: grupoIds } })
             .populate('grupo', 'nombre moneda')
             .populate('pagadoPor', 'nombre foto')

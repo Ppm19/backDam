@@ -6,7 +6,6 @@ const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer'); // Importar nodemailer
 require('dotenv').config();
 
-// Configuración de Nodemailer (ejemplo con Gmail)
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
