@@ -159,6 +159,7 @@ router.put('/:grupoId', async (req, res) => {
     }
 });
 
+
 // 5. Eliminar un grupo
 
 router.delete('/:grupoId', async (req, res) => {
@@ -169,19 +170,14 @@ router.delete('/:grupoId', async (req, res) => {
         if (!usuarioIdAccion) {
             return res.status(401).json({ message: 'No autenticado o ID de usuario no proporcionado para la acción.' });
         }
-        let esAdmin = false;
-        if (usuarioIdAccion) {
-            const usuarioAccion = await Usuario.findById(usuarioIdAccion);
-            esAdmin = !!usuarioAccion?.isAdmin;
-        }
 
         const grupo = await Grupo.findById(grupoId);
         if (!grupo) {
             return res.status(404).json({ message: 'Grupo no encontrado.' });
         }
 
-        if (!esAdmin && grupo.creador.toString() !== usuarioIdAccion) {
-            return res.status(403).json({ message: 'No autorizado para eliminar este grupo. Solo el creador o un admin puede.' });
+        if (grupo.creador.toString() !== usuarioIdAccion) {
+            return res.status(403).json({ message: 'No autorizado para eliminar este grupo. Solo el creador puede.' });
         }
 
         const gastosDelGrupo = await Gasto.find({ grupo: grupoId });
@@ -210,6 +206,7 @@ router.delete('/:grupoId', async (req, res) => {
         res.status(500).json({ message: "Error interno del servidor al eliminar grupo", error: err.message });
     }
 });
+
 
 // 6. Quitar un miembro de un grupo (solo el creador puede hacerlo)
 
