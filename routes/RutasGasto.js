@@ -340,14 +340,20 @@ router.delete('/:gastoId', async (req, res) => {
             return res.status(401).json({ message: 'ID de usuario que realiza la acción es requerido para eliminar.' });
         }
 
+        const usuarioAccion = await Usuario.findById(usuarioIdAccion);
+        if (!usuarioAccion) {
+            return res.status(404).json({ message: 'Usuario que realiza la acción no encontrado.' });
+        }
+        const esAdmin = !!usuarioAccion.isAdmin;
+
         const gasto = await Gasto.findById(gastoId);
 
         if (!gasto) {
             return res.status(404).json({ message: 'Gasto no encontrado.' });
         }
 
-        if (gasto.pagadoPor.toString() !== usuarioIdAccion) {
-            return res.status(403).json({ message: 'No autorizado. Solo el usuario que pagó el gasto puede eliminarlo.' });
+        if (!esAdmin && gasto.pagadoPor.toString() !== usuarioIdAccion) {
+            return res.status(403).json({ message: 'No autorizado. Solo el usuario que pagó el gasto o un admin puede eliminarlo.' });
         }
 
         await Gasto.findByIdAndDelete(gastoId);
@@ -395,17 +401,4 @@ router.get('/usuario/:usuarioId', async (req, res) => {
     }
 });
 
-// Listar todos los gastos (solo admin)
-router.get('/', async (req, res) => {
-    try {
-      const gastos = await Gasto.find({})
-        .populate('detalleDivision.usuario', '_id')
-        .populate('pagadoPor', 'nombre')
-        .sort({ fecha: -1 });
-      res.json(gastos);
-    } catch (err) {
-      res.status(500).json({ message: 'Error al obtener gastos', error: err.message });
-    }
-  });
-  
 module.exports = router;

@@ -112,7 +112,7 @@ router.get('/:grupoId', async (req, res) => {
             .populate('miembros', 'nombre email foto');
 
         if (!grupo) {
-            return res.status(404).json({ message: 'Grupo no encontrado.' });a
+            return res.status(404).json({ message: 'Grupo no encontrado.' });
         }
 
         res.json(grupo);
@@ -171,21 +171,32 @@ router.delete('/:grupoId', async (req, res) => {
             return res.status(401).json({ message: 'No autenticado o ID de usuario no proporcionado para la acción.' });
         }
 
+        const usuarioAccion = await Usuario.findById(usuarioIdAccion);
+        if (!usuarioAccion) {
+            return res.status(404).json({ message: 'Usuario que realiza la acción no encontrado.' });
+        }
+        const esAdmin = !!usuarioAccion.isAdmin;
+
         const grupo = await Grupo.findById(grupoId);
         if (!grupo) {
             return res.status(404).json({ message: 'Grupo no encontrado.' });
         }
 
-        if (grupo.creador.toString() !== usuarioIdAccion) {
-            return res.status(403).json({ message: 'No autorizado para eliminar este grupo. Solo el creador puede.' });
+        if (!esAdmin && grupo.creador.toString() !== usuarioIdAccion) {
+            return res.status(403).json({ message: 'No autorizado para eliminar este grupo. Solo el creador o un admin puede.' });
         }
 
         const gastosDelGrupo = await Gasto.find({ grupo: grupoId });
-        if (gastosDelGrupo && gastosDelGrupo.length > 0) {
+        if (!esAdmin && gastosDelGrupo && gastosDelGrupo.length > 0) {
             return res.status(400).json({ 
                 message: 'Este grupo no se puede eliminar porque tiene gastos pendientes. Por favor, salda todos los gastos antes de eliminar el grupo.',
                 tieneGastos: true
             });
+        }
+
+        // Si es admin, elimina los gastos asociados para evitar orfandad
+        if (esAdmin && gastosDelGrupo && gastosDelGrupo.length > 0) {
+            await Gasto.deleteMany({ grupo: grupoId });
         }
 
         await Usuario.updateMany(
