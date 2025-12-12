@@ -215,8 +215,15 @@ router.put('/:gastoId', async (req, res) => {
             return res.status(404).json({ message: 'Gasto no encontrado.' });
         }
 
-        if (gasto.pagadoPor.toString() !== usuarioIdAccion) {
-            return res.status(403).json({ message: 'No autorizado. Solo el usuario que pagó el gasto puede modificarlo.' });
+        // Permitir también a un admin
+        let esAdmin = false;
+        if (usuarioIdAccion) {
+            const usuarioAccion = await Usuario.findById(usuarioIdAccion);
+            esAdmin = !!usuarioAccion?.isAdmin;
+        }
+
+        if (!esAdmin && gasto.pagadoPor.toString() !== usuarioIdAccion) {
+            return res.status(403).json({ message: 'No autorizado. Solo el usuario que pagó el gasto o un admin puede modificarlo.' });
         }
 
         if (participanteAEliminarId) {
