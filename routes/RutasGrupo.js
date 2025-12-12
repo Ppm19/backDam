@@ -39,36 +39,24 @@ router.post('/', async (req, res) => {
             return res.status(404).json({ message: 'Usuario creador no encontrado.' });
         }
 
+        const miembrosIniciales = Array.from(new Set([
+            creadorId,
+            ...((Array.isArray(amigosAInvitar) ? amigosAInvitar : []).filter(Boolean))
+        ]));
+
         const nuevoGrupo = new Grupo({
             nombre,
             creador: creadorId,
-            miembros: [creadorId],
+            miembros: miembrosIniciales,
             moneda: moneda 
         });
 
         const grupoGuardado = await nuevoGrupo.save();
 
-        await Usuario.findByIdAndUpdate(creadorId, { $addToSet: { grupos: grupoGuardado._id } });
-
-        if (amigosAInvitar && Array.isArray(amigosAInvitar) && amigosAInvitar.length > 0) {
-            const invitacionesPromises = amigosAInvitar.map(amigoId => {
-                if (amigoId.toString() === creadorId.toString()) {
-                    return null;
-                }
-
-                const nuevaInvitacion = new InvitacionGrupo({
-                    invitador: creadorId,
-                    invitado: amigoId,
-                    grupo: grupoGuardado._id,
-                    estado: 'pendiente'
-                });
-                return nuevaInvitacion.save().catch(err => {
-                    console.error(`Error al crear invitación para ${amigoId} al grupo ${grupoGuardado._id}:`, err.message);
-                    return null;
-                });
-            });
-            await Promise.all(invitacionesPromises.filter(p => p !== null));
-        }
+        await Usuario.updateMany(
+            { _id: { $in: miembrosIniciales } },
+            { $addToSet: { grupos: grupoGuardado._id } }
+        );
 
         res.status(201).json(grupoGuardado);
     } catch (err) {
