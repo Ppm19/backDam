@@ -227,9 +227,13 @@ router.put('/:gastoId', async (req, res) => {
         }
 
         if (participanteAEliminarId) {
+            console.log('Backend: Petición para eliminar participante', participanteAEliminarId, 'del gasto', gastoId);
+            console.log('Backend: Gasto original (total, detalleDivision.length):', gasto.total, gasto.detalleDivision.length);
+
             const participanteIndex = gasto.detalleDivision.findIndex(p => p.usuario.toString() === participanteAEliminarId);
 
             if (participanteIndex === -1) {
+                console.log('Backend: Participante no encontrado en detalleDivision.');
                 return res.status(404).json({ message: 'Participante a eliminar no encontrado en el detalle de división.' });
             }
 
@@ -241,6 +245,8 @@ router.put('/:gastoId', async (req, res) => {
 
             gasto.detalleDivision.splice(participanteIndex, 1);
             gasto.markModified('detalleDivision');
+            
+            console.log('Backend: Gasto modificado (total, detalleDivision.length):', gasto.total, gasto.detalleDivision.length);
 
         } else {
             let divisionActualizada = gasto.detalleDivision;
