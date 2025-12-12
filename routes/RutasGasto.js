@@ -19,10 +19,9 @@ router.get('/', async (req, res) => {
     }
 });
 
-// Middleware para verificar si un usuario es miembro de un grupo (lo usaremos más adelante)
 async function verificarMiembro(req, res, next) {
     try {
-        const { grupoId } = req.params.grupoId ? req.params : req.body; // Puede venir de params o body
+        const { grupoId } = req.params.grupoId ? req.params : req.body;
         const { usuarioId } = req.body.pagadoPor ? { usuarioId: req.body.pagadoPor } : req.currentUser; // Asumimos que currentUser puede estar disponible
 
         if (!grupoId || !usuarioId) {
@@ -101,7 +100,7 @@ router.post('/', async (req, res) => {
             }
             
             const sumaDetalle = detalleDivision.reduce((acc, item) => acc + parseFloat(item.importe || 0), 0);
-            const epsilon = 0.01; // Para comparaciones de punto flotante
+            const epsilon = 0.01;
             if (Math.abs(sumaDetalle - parseFloat(total)) > epsilon) {
                 return res.status(400).json({ message: `La suma de los importes en detalleDivision (${sumaDetalle.toFixed(2)}) no coincide con el importe total del gasto (${parseFloat(total).toFixed(2)}).` });
             }
@@ -234,6 +233,7 @@ router.put('/:gastoId', async (req, res) => {
             if (gasto.total < 0) gasto.total = 0;
 
             gasto.detalleDivision.splice(participanteIndex, 1);
+            gasto.markModified('detalleDivision');
 
         } else {
             let divisionActualizada = gasto.detalleDivision;
