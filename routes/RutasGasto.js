@@ -226,17 +226,13 @@ router.put('/:gastoId', async (req, res) => {
             return res.status(403).json({ message: 'No autorizado. Solo el usuario que pagó el gasto o un admin puede modificarlo.' });
         }
 
-        // Soportar payload desde el front: accion === 'eliminar_participante' y campo participanteIdAEliminar
         const idParticipanteParaEliminar = participanteAEliminarId || participanteIdAEliminar;
 
         if (accion === 'eliminar_participante' && idParticipanteParaEliminar) {
-            console.log('Backend: Petición para eliminar participante', idParticipanteParaEliminar, 'del gasto', gastoId);
-            console.log('Backend: Gasto original (total, detalleDivision.length):', gasto.total, gasto.detalleDivision.length);
 
             const participanteIndex = gasto.detalleDivision.findIndex(p => p.usuario.toString() === idParticipanteParaEliminar.toString());
 
             if (participanteIndex === -1) {
-                console.log('Backend: Participante no encontrado en detalleDivision.');
                 return res.status(404).json({ message: 'Participante a eliminar no encontrado en el detalle de división.' });
             }
 
@@ -249,8 +245,6 @@ router.put('/:gastoId', async (req, res) => {
             gasto.detalleDivision.splice(participanteIndex, 1);
             gasto.markModified('detalleDivision');
             
-            console.log('Backend: Gasto modificado (total, detalleDivision.length):', gasto.total, gasto.detalleDivision.length);
-
         } else {
             let divisionActualizada = gasto.detalleDivision;
             let totalActualizado = gasto.total;
